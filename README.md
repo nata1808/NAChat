@@ -33,6 +33,6 @@ Si alguien más quiere probarla en su máquina (o yo la quiero volver a correr a
 git clone https://github.com/nata1808/NAChat.git
 cd NAChat
 python -m venv venv
-.\venv\Scripts\activate    # en Windows
+.\venv\Scripts\activate 
 pip install -r requirements.txt
 streamlit run app.py
