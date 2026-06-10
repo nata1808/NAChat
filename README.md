@@ -6,10 +6,10 @@ La hice porque quería algo que no dependiera de OpenAI ni me pidiera tarjeta de
 
 ## Qué hace esto
 
-- Chateás normal, te responde al toque (gracias a Groq)
-- Si le preguntás algo que necesita información actual, busca en internet solo – a veces hay que activarle el checkbox, pero ya medio aprendió a darse cuenta
-- Le podés pasar un PDF o un .txt y la IA se aviva y te responde basado en eso
-- Los enlaces que te da son de verdad, no esas redirecciones pedorras que te rompen después de dos clics
+- Chateas normal, te responde rápido (gracias a Groq)
+- Si le preguntas algo que necesita información actual, busca en internet solo – a veces hay que activarle el checkbox, pero ya medio aprendió a darse cuenta
+- Le puedes pasar un PDF o un .txt y la IA se aviva y te responde basado en eso
+- Los enlaces que te da son de verdad, no esas redirecciones malas que te rompen después de dos clics
 - Se acuerda de lo que hablaste antes, porque sino es como hablar con una ameba
 
 ## Cómo la usé para armarla
@@ -23,7 +23,7 @@ No soy programador experto, así que la hice con:
 
 ## Quién soy y por qué la hice
 
-Me llamo Natanael Ferrer, estoy en Bogotá (Colombia), y la empecé el 10 de junio de 2026. Laburo en Pevaar Software Factory S.A.S., pero esto lo hice por mi cuenta para aprender más que otra cosa. Quería tener una IA personal que no me cobrara por cada pregunta, que supiera quién es su creador y que no se hiciera la misteriosa cuando le pedís un enlace a YouTube.
+Me llamo Natanael Ferrer, vivo en Bogotá (Colombia), y la empecé el 10 de junio de 2026. Esto lo hice por mi cuenta para aprender más que otra cosa. Quería tener una IA personal que no me cobrara por cada pregunta, que supiera quién es su creador y que no se hiciera la misteriosa cuando le pides un enlace a YouTube.
 
 ## Cómo correrla local (por si alguien quiere)
 
