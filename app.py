@@ -4,6 +4,8 @@ from ddgs import DDGS
 import PyPDF2
 import os
 from dotenv import load_dotenv
+import requests
+import io
 
 load_dotenv()
 api_key = st.secrets["GROQ_API_KEY"]
@@ -78,6 +80,21 @@ def leer_pdf(archivo):
         texto += pagina.extract_text()
     return texto
 
+def generar_imagen(descripcion):
+    """Genera imagen usando Pollinations.ai (gratis, sin API key)"""
+    prompt_clean = descripcion.replace(" ", "%20")
+    url = f"https://image.pollinations.ai/prompt/{prompt_clean}?nologo=true&width=1024&height=1024"
+    try:
+        response = requests.get(url, timeout=30)
+        if response.status_code == 200:
+            image_bytes = io.BytesIO(response.content)
+            return image_bytes, url
+        else:
+            return None, None
+    except Exception as e:
+        st.error(f"Error en generación: {e}")
+        return None, None
+
 with st.sidebar:
     st.header("📁 Archivos")
     archivo_subido = st.file_uploader("Sube un archivo .txt o .pdf", type=["txt", "pdf"])
@@ -101,26 +118,50 @@ with st.sidebar:
 pregunta = st.chat_input("Escribe tu mensaje...")
 
 if pregunta:
-    st.session_state.messages.append({"role": "user", "content": pregunta})
-    with st.chat_message("user"):
-        st.markdown(pregunta)
+    # Detectar si pide imagen
+    palabras_imagen = ['imagen', 'dibuja', 'crea una imagen', 'genera una imagen', 'ilustración', 'foto de', 'imagen de']
+    es_peticion_imagen = any(palabra in pregunta.lower() for palabra in palabras_imagen)
 
-    contexto = ""
-    if st.session_state.conocimiento_personal:
-        contexto += f"INFORMACIÓN PERSONAL DEL USUARIO:\n{st.session_state.conocimiento_personal}\n\n"
+    if es_peticion_imagen:
+        # Modo imagen
+        st.session_state.messages.append({"role": "user", "content": pregunta})
+        with st.chat_message("user"):
+            st.markdown(pregunta)
 
-    if buscar_manual or necesita_buscar(pregunta):
-        with st.spinner("🔎 Buscando en internet..."):
-            resultados_web = buscar_internet(pregunta)
-            contexto += f"INFORMACIÓN DE INTERNET (resultados actuales con enlaces):\n{resultados_web}\n\n"
+        with st.spinner("🎨 Generando imagen con Pollinations... esto puede tomar unos segundos"):
+            imagen_bytes, img_url = generar_imagen(pregunta)
 
-    prompt_completo = f"{contexto}\nPregunta del usuario: {pregunta}"
+        if imagen_bytes:
+            with st.chat_message("assistant"):
+                st.image(imagen_bytes, caption=f"Imagen generada: {pregunta}")
+                st.markdown(f"[📥 Descargar imagen]({img_url})")
+            st.session_state.messages.append({"role": "assistant", "content": f"![Imagen]({img_url})"})
+        else:
+            with st.chat_message("assistant"):
+                st.markdown("❌ No pude generar la imagen. Intenta con otra descripción.")
+            st.session_state.messages.append({"role": "assistant", "content": "No se pudo generar la imagen."})
+    else:
+        # Modo chat normal
+        st.session_state.messages.append({"role": "user", "content": pregunta})
+        with st.chat_message("user"):
+            st.markdown(pregunta)
 
-    with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        full_response = ""
+        contexto = ""
+        if st.session_state.conocimiento_personal:
+            contexto += f"INFORMACIÓN PERSONAL DEL USUARIO:\n{st.session_state.conocimiento_personal}\n\n"
 
-        system_prompt = f"""Eres un asistente de IA personalizado llamado "NAChat AI". 
+        if buscar_manual or necesita_buscar(pregunta):
+            with st.spinner("🔎 Buscando en internet..."):
+                resultados_web = buscar_internet(pregunta)
+                contexto += f"INFORMACIÓN DE INTERNET (resultados actuales con enlaces):\n{resultados_web}\n\n"
+
+        prompt_completo = f"{contexto}\nPregunta del usuario: {pregunta}"
+
+        with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            full_response = ""
+
+            system_prompt = f"""Eres un asistente de IA personalizado llamado "NAChat AI". 
 Fue creada por **Natanael Ferrer** el día **10 de Junio de 2026** en la ciudad de **Bogotá, Colombia**. 
 Tu desarrollador y propietario es Natanael Ferrer, y perteneces a la empresa **Pevaar Software Factory S.A.S**.
 
@@ -133,26 +174,26 @@ IMPORTANTE:
 - Usa la información personal del usuario si se proporciona (documentos subidos).
 - No inventes datos. Si no sabes algo, dilo claramente."""
 
-        mensajes_para_api = [{"role": "system", "content": system_prompt}]
-        for msg in st.session_state.messages[:-1]:
-            mensajes_para_api.append({"role": msg["role"], "content": msg["content"]})
-        mensajes_para_api.append({"role": "user", "content": prompt_completo})
+            mensajes_para_api = [{"role": "system", "content": system_prompt}]
+            for msg in st.session_state.messages[:-1]:
+                mensajes_para_api.append({"role": msg["role"], "content": msg["content"]})
+            mensajes_para_api.append({"role": "user", "content": prompt_completo})
 
-        try:
-            modelo = "llama-3.1-8b-instant"
-            stream = client.chat.completions.create(
-                model=modelo,
-                messages=mensajes_para_api,
-                stream=True,
-                temperature=0.7,
-            )
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
-                    full_response += chunk.choices[0].delta.content
-                    response_placeholder.markdown(full_response + "▌")
-            response_placeholder.markdown(full_response)
+            try:
+                modelo = "llama-3.1-8b-instant"
+                stream = client.chat.completions.create(
+                    model=modelo,
+                    messages=mensajes_para_api,
+                    stream=True,
+                    temperature=0.7,
+                )
+                for chunk in stream:
+                    if chunk.choices[0].delta.content is not None:
+                        full_response += chunk.choices[0].delta.content
+                        response_placeholder.markdown(full_response + "▌")
+                response_placeholder.markdown(full_response)
 
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-        except Exception as e:
-            st.error(f"❌ Error con Groq: {e}")
+            except Exception as e:
+                st.error(f"❌ Error con Groq: {e}")
