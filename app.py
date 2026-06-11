@@ -26,7 +26,6 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# ===================== FUNCIONES EXISTENTES =====================
 def buscar_internet(pregunta):
     try:
         es_video = any(p in pregunta.lower() for p in ['video', 'youtube', 'vídeo', 'video de youtube', 'video en youtube', 'dame un video', 'video interesante'])
@@ -67,7 +66,6 @@ def leer_pdf(archivo):
         texto += pagina.extract_text()
     return texto
 
-# ===================== GENERACIÓN DE IMÁGENES (POLLINATIONS) =====================
 def generar_imagen(descripcion):
     prompt_clean = descripcion.replace(" ", "%20")
     url = f"https://image.pollinations.ai/prompt/{prompt_clean}?nologo=true&width=1024&height=1024"
@@ -81,7 +79,6 @@ def generar_imagen(descripcion):
         st.error(f"Error en generación: {e}")
         return None, None
 
-# ===================== BARRA LATERAL =====================
 with st.sidebar:
     st.header("📁 Archivos")
     archivo_subido = st.file_uploader("Sube un archivo .txt o .pdf", type=["txt", "pdf"])
@@ -100,16 +97,13 @@ with st.sidebar:
     buscar_manual = st.checkbox("Activar búsqueda web (opcional)", value=False)
     st.caption("La IA también busca automáticamente cuando detecta que lo necesitas.")
 
-# ===================== ENTRADA DEL USUARIO =====================
 pregunta = st.chat_input("Escribe tu mensaje...")
 
 if pregunta:
-    # Detectar si pide imagen
     palabras_imagen = ['imagen', 'dibuja', 'crea una imagen', 'genera una imagen', 'ilustración', 'foto de', 'imagen de']
     es_peticion_imagen = any(palabra in pregunta.lower() for palabra in palabras_imagen)
 
     if es_peticion_imagen:
-        # --- MODO IMAGEN ---
         st.session_state.messages.append({"role": "user", "content": pregunta})
         with st.chat_message("user"):
             st.markdown(pregunta)
@@ -125,7 +119,6 @@ if pregunta:
                 st.markdown("❌ No pude generar la imagen. Intenta con otra descripción.")
             st.session_state.messages.append({"role": "assistant", "content": "No se pudo generar la imagen."})
     else:
-        # --- MODO CHAT NORMAL ---
         st.session_state.messages.append({"role": "user", "content": pregunta})
         with st.chat_message("user"):
             st.markdown(pregunta)
