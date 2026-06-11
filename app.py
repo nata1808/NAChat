@@ -67,18 +67,20 @@ def leer_pdf(archivo):
     return texto
 
 def generar_imagen(descripcion):
-    API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
-    headers = {"Authorization": f"Bearer {st.secrets['HF_API_TOKEN']}"}
-    payload = {"inputs": descripcion}
+    prompt_clean = descripcion.replace(" ", "%20")
+    url = f"https://image.pollinations.ai/prompt/{prompt_clean}?width=1024&height=1024"
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
-        if response.status_code == 200:
-            return io.BytesIO(response.content), None
+        response = requests.get(url, timeout=30)
+        if response.status_code == 200 and 'image' in response.headers.get('content-type', ''):
+            return io.BytesIO(response.content), url
         else:
-            st.error(f"Hugging Face error {response.status_code}: {response.text}")
+            if response.status_code == 429 or (response.status_code == 402 and "queue full" in response.text.lower()):
+                st.warning("El servicio gratuito de imágenes está saturado. Intenta de nuevo en unos segundos.")
+            else:
+                st.error(f"No se pudo generar la imagen (código {response.status_code}).")
             return None, None
     except Exception as e:
-        st.error(f"Error conectando a Hugging Face: {e}")
+        st.error(f"Error de conexión: {e}")
         return None, None
 
 with st.sidebar:
@@ -109,16 +111,16 @@ if pregunta:
         st.session_state.messages.append({"role": "user", "content": pregunta})
         with st.chat_message("user"):
             st.markdown(pregunta)
-        with st.spinner("🎨 Generando imagen con IA... puede tomar hasta 30 segundos"):
-            imagen_bytes, _ = generar_imagen(pregunta)
+        with st.spinner("🎨 Generando imagen... puede tardar unos segundos"):
+            imagen_bytes, img_url = generar_imagen(pregunta)
         if imagen_bytes:
             with st.chat_message("assistant"):
                 st.image(imagen_bytes, caption=f"Imagen generada: {pregunta}")
-                st.markdown("💡 *Haz clic derecho en la imagen y elige 'Guardar imagen como...'*")
-            st.session_state.messages.append({"role": "assistant", "content": f"![Imagen generada: {pregunta}](data:image/png;base64,skipped)"})
+                st.markdown(f"[📥 Descargar imagen]({img_url})")
+            st.session_state.messages.append({"role": "assistant", "content": f"![Imagen]({img_url})"})
         else:
             with st.chat_message("assistant"):
-                st.markdown("❌ No pude generar la imagen. Intenta con otra descripción más simple o revisa tu token de Hugging Face.")
+                st.markdown("❌ No pude generar la imagen. El servicio gratuito puede estar saturado. Intenta más tarde o con otra descripción.")
             st.session_state.messages.append({"role": "assistant", "content": "No se pudo generar la imagen."})
     else:
         st.session_state.messages.append({"role": "user", "content": pregunta})
