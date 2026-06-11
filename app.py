@@ -11,7 +11,7 @@ load_dotenv()
 api_key = st.secrets["GROQ_API_KEY"]
 
 if not api_key:
-    st.error("⚠️ No se encontró la clave API de Groq. Configura tu archivo .env o pon la clave manualmente en el código.")
+    st.error("⚠️ No se encontró la clave API de Groq.")
     st.stop()
 else:
     client = Groq(api_key=api_key)
@@ -26,46 +26,33 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
+# ===================== FUNCIONES EXISTENTES =====================
 def buscar_internet(pregunta):
     try:
         es_video = any(p in pregunta.lower() for p in ['video', 'youtube', 'vídeo', 'video de youtube', 'video en youtube', 'dame un video', 'video interesante'])
-
-        if es_video:
-            consulta = f"site:youtube.com {pregunta}"
-        else:
-            consulta = pregunta
-
+        consulta = f"site:youtube.com {pregunta}" if es_video else pregunta
         with DDGS() as ddgs:
             resultados = list(ddgs.text(consulta, max_results=6))
-
         if not resultados:
             return "No encontré resultados para esa búsqueda."
-
         respuesta = f"🔍 **Resultados de búsqueda para:** '{pregunta}'\n\n"
         contador = 0
-
         for r in resultados:
             titulo = r.get('title', 'Sin título')
             enlace = r.get('href', '#')
             descripcion = r.get('body', 'Sin descripción')
-
             if es_video:
                 if 'youtube.com/watch' in enlace or 'youtu.be/' in enlace:
                     contador += 1
                     respuesta += f"{contador}. **[{titulo}]({enlace})**\n   📎 {enlace}\n   📄 {descripcion}\n\n"
-                    if contador == 3:
-                        break
+                    if contador == 3: break
             else:
                 contador += 1
                 respuesta += f"{contador}. **[{titulo}]({enlace})**\n   📎 {enlace}\n   📄 {descripcion}\n\n"
-                if contador == 3:
-                    break
-
+                if contador == 3: break
         if es_video and contador == 0:
-            return "No encontré videos de YouTube para esa consulta. Intenta con otras palabras."
-
+            return "No encontré videos de YouTube para esa consulta."
         return respuesta
-
     except Exception as e:
         return f"❌ Error en la búsqueda: {str(e)}"
 
@@ -80,27 +67,26 @@ def leer_pdf(archivo):
         texto += pagina.extract_text()
     return texto
 
+# ===================== GENERACIÓN DE IMÁGENES (POLLINATIONS) =====================
 def generar_imagen(descripcion):
-    """Genera imagen usando Pollinations.ai (gratis, sin API key)"""
     prompt_clean = descripcion.replace(" ", "%20")
     url = f"https://image.pollinations.ai/prompt/{prompt_clean}?nologo=true&width=1024&height=1024"
     try:
         response = requests.get(url, timeout=30)
         if response.status_code == 200:
-            image_bytes = io.BytesIO(response.content)
-            return image_bytes, url
+            return io.BytesIO(response.content), url
         else:
             return None, None
     except Exception as e:
         st.error(f"Error en generación: {e}")
         return None, None
 
+# ===================== BARRA LATERAL =====================
 with st.sidebar:
     st.header("📁 Archivos")
     archivo_subido = st.file_uploader("Sube un archivo .txt o .pdf", type=["txt", "pdf"])
     if "conocimiento_personal" not in st.session_state:
         st.session_state.conocimiento_personal = ""
-
     if archivo_subido is not None:
         if archivo_subido.type == "application/pdf":
             texto = leer_pdf(archivo_subido)
@@ -109,12 +95,12 @@ with st.sidebar:
         st.session_state.conocimiento_personal = texto
         st.success(f"✅ Documento cargado: {len(texto)} caracteres")
         st.text_area("Vista previa", texto[:500], height=150)
-
     st.divider()
     st.header("🌐 Busqueda en internet")
     buscar_manual = st.checkbox("Activar búsqueda web (opcional)", value=False)
     st.caption("La IA también busca automáticamente cuando detecta que lo necesitas.")
 
+# ===================== ENTRADA DEL USUARIO =====================
 pregunta = st.chat_input("Escribe tu mensaje...")
 
 if pregunta:
@@ -123,14 +109,12 @@ if pregunta:
     es_peticion_imagen = any(palabra in pregunta.lower() for palabra in palabras_imagen)
 
     if es_peticion_imagen:
-        # Modo imagen
+        # --- MODO IMAGEN ---
         st.session_state.messages.append({"role": "user", "content": pregunta})
         with st.chat_message("user"):
             st.markdown(pregunta)
-
-        with st.spinner("🎨 Generando imagen con Pollinations... esto puede tomar unos segundos"):
+        with st.spinner("🎨 Generando imagen... puede tomar unos segundos"):
             imagen_bytes, img_url = generar_imagen(pregunta)
-
         if imagen_bytes:
             with st.chat_message("assistant"):
                 st.image(imagen_bytes, caption=f"Imagen generada: {pregunta}")
@@ -141,26 +125,21 @@ if pregunta:
                 st.markdown("❌ No pude generar la imagen. Intenta con otra descripción.")
             st.session_state.messages.append({"role": "assistant", "content": "No se pudo generar la imagen."})
     else:
-        # Modo chat normal
+        # --- MODO CHAT NORMAL ---
         st.session_state.messages.append({"role": "user", "content": pregunta})
         with st.chat_message("user"):
             st.markdown(pregunta)
-
         contexto = ""
         if st.session_state.conocimiento_personal:
             contexto += f"INFORMACIÓN PERSONAL DEL USUARIO:\n{st.session_state.conocimiento_personal}\n\n"
-
         if buscar_manual or necesita_buscar(pregunta):
             with st.spinner("🔎 Buscando en internet..."):
                 resultados_web = buscar_internet(pregunta)
                 contexto += f"INFORMACIÓN DE INTERNET (resultados actuales con enlaces):\n{resultados_web}\n\n"
-
         prompt_completo = f"{contexto}\nPregunta del usuario: {pregunta}"
-
         with st.chat_message("assistant"):
             response_placeholder = st.empty()
             full_response = ""
-
             system_prompt = f"""Eres un asistente de IA personalizado llamado "NAChat AI". 
 Fue creada por **Natanael Ferrer** el día **10 de Junio de 2026** en la ciudad de **Bogotá, Colombia**. 
 Tu desarrollador y propietario es Natanael Ferrer, y perteneces a la empresa **Pevaar Software Factory S.A.S**.
@@ -173,12 +152,10 @@ IMPORTANTE:
 - Si el usuario pide un enlace a un video de YouTube, proporciónalo directamente sin explicaciones paso a paso.
 - Usa la información personal del usuario si se proporciona (documentos subidos).
 - No inventes datos. Si no sabes algo, dilo claramente."""
-
             mensajes_para_api = [{"role": "system", "content": system_prompt}]
             for msg in st.session_state.messages[:-1]:
                 mensajes_para_api.append({"role": msg["role"], "content": msg["content"]})
             mensajes_para_api.append({"role": "user", "content": prompt_completo})
-
             try:
                 modelo = "llama-3.1-8b-instant"
                 stream = client.chat.completions.create(
@@ -192,8 +169,6 @@ IMPORTANTE:
                         full_response += chunk.choices[0].delta.content
                         response_placeholder.markdown(full_response + "▌")
                 response_placeholder.markdown(full_response)
-
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
-
             except Exception as e:
                 st.error(f"❌ Error con Groq: {e}")
