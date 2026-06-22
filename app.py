@@ -81,7 +81,45 @@ with st.sidebar:
     st.header("🌐 Busqueda en internet")
     buscar_manual = st.checkbox("Activar búsqueda web (opcional)", value=False)
     st.caption("La IA también busca automáticamente cuando detecta que lo necesitas.")
+        st.divider()
+    st.header("💾 Conversación")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📥 Descargar", use_container_width=True):
+            json_data = exportar_conversacion()
+            st.download_button(
+                label="Guardar archivo",
+                data=json_data,
+                file_name="conversacion_nachat.json",
+                mime="application/json",
+                key="download_btn"
+            )
+    with col2:
+        archivo_cargado = st.file_uploader("📤 Cargar", type=["json"], label_visibility="collapsed")
+        if archivo_cargado is not None:
+            if importar_conversacion(archivo_cargado):
+                st.success("✅ Conversación restaurada")
+                st.rerun()
 
+def exportar_conversacion():
+    import json
+    return json.dumps(st.session_state.messages, indent=2)
+
+def importar_conversacion(archivo):
+    import json
+    try:
+        contenido = json.loads(archivo.read())
+        if isinstance(contenido, list):
+            st.session_state.messages = contenido
+            return True
+        else:
+            st.error("El archivo no tiene el formato correcto.")
+            return False
+    except Exception as e:
+        st.error(f"Error al importar: {e}")
+        return False
+        
 pregunta = st.chat_input("Escribe tu mensaje...")
 
 if pregunta:
